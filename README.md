@@ -65,18 +65,20 @@ Model Used : Sequential Neural Network using Keras Sequential API
 
 Used Version:
 
-Python : Python 3.9.16
-Pandas==1.3.3
-matplotlib==3.4.3
-seaborn==0.11.2
-numpy==1.21.2
-scikit-learn==0.24.2
-keras==2.6.0
-streamlit==1.5.0
-scikit-image==0.18.3
+	Python : Python 3.9.16
+	Pandas==1.3.3
+	matplotlib==3.4.3
+	seaborn==0.11.2
+	numpy==1.21.2
+	scikit-learn==0.24.2
+	keras==2.6.0
+	streamlit==1.5.0
+	scikit-image==0.18.3
 
 
 Steps to run :
 
 python breastcancer.py       (Only one time)
+
+
 streamlit run app.py
