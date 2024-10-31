@@ -56,65 +56,119 @@ def predict_breast_cancer(input_data, testing_mode=True, positive_probability=0.
 
 
 # Create a Streamlit web app
-st.title("Breast Cancer Prediction")
+st.title("Breast Cancer Prediction System")
 
-st.write("""
-To predict whether breast cancer is benign or malignant, please provide the following features:
-""")
+# Add a sidebar for navigation
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", ["Home", "Sample Images", "Make Prediction"])
 
-# File uploader for image
-image = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+if page == "Home":
+    st.write("""
+    # Welcome to the Breast Cancer Prediction System
+    
+    This application uses advanced machine learning techniques to analyze breast thermal images 
+    and predict whether a tumor is benign or malignant.
+    
+    ### How to use:
+    1. Browse through sample images in the 'Sample Images' section
+    2. Upload your image in the 'Make Prediction' section
+    3. Get instant predictions and hospital recommendations
+    
+    ### Features:
+    - Advanced image analysis
+    - Instant predictions
+    - Hospital recommendations
+    - Educational resources
+    """)
 
-# Create a button to make predictions
-if st.button("Predict"):
-    if image is not None:
-        try:
-            # Extract features from the uploaded image
-            features = extract_features(image)
+elif page == "Sample Images":
+    st.write("## Sample Images for Reference")
+    
+    st.write("### Benign Cases")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image("sample_images/benign_1.jpg", caption="Benign Sample 1")
+    
+    
+    st.write("### Malignant Cases")
+    col3, col4 = st.columns(2)
+    with col3:
+        st.image("sample_images/malignant_1.jpg", caption="Malignant Sample 1")
+    with col4:
+        st.image("sample_images/malignant_2.jpg", caption="Malignant Sample 2")
+    
+    st.write("""
+    ### Image Guidelines:
+    - Use high-quality thermal images
+    - Ensure proper lighting and focus
+    - Images should be clearly visible
+    - Recommended format: JPG, PNG
+    """)
 
-            # Preprocess the input data
-            input_data = preprocess_input_data(np.array(features).reshape(1, -1))
+elif page == "Make Prediction":
+    st.write("## Upload Your Image for Prediction")
+    
+    # File uploader with example image
+    st.write("### Upload an image:")
+    image = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
+    
+    # Add example button
+    if st.button("Use Example Image"):
+        image = "sample_images/example.jpg"
+        st.image(image, caption="Example Image", width=300)
+    
+    # Create a button to make predictions
+    if st.button("Predict"):
+        if image is not None:
+            try:
+                # Show loading spinner
+                with st.spinner('Processing image...'):
+                    # Extract features from the uploaded image
+                    features = extract_features(image)
+                    input_data = preprocess_input_data(np.array(features).reshape(1, -1))
+                    predictions = predict_breast_cancer(input_data)
 
-            # Get predictions
-            predictions = predict_breast_cancer(input_data)
-
-            # Display the prediction
-            if predictions:
-                st.success("Prediction: Positive (Malignant)")
-            else:
-                st.success("Prediction: Negative (Benign)")
+                # Display results in an organized way
+                st.write("### Results:")
+                col1, col2 = st.columns(2)
                 
-            recommended_hospitals = recommend_hospital(predictions)
+                with col1:
+                    if predictions:
+                        st.error("📊 Prediction: Malignant")
+                    else:
+                        st.success("📊 Prediction: Benign")
+                
+                with col2:
+                    recommended_hospitals = recommend_hospital(predictions)
+                    st.write("🏥 Recommended Hospitals:")
+                    st.dataframe(recommended_hospitals)
 
-            
-            st.write("Recommended Hospital:")
-            st.table(recommended_hospitals)
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
+        else:
+            st.warning("Please upload an image or use the example image.")
 
-        except Exception as e:
-            st.error(f"An error occurred: {e}")
-    else:
-        st.warning("Please upload an image.")
-# Add an explanation for feature extraction
-st.write("""
-### Feature Extraction:
-Texture Features:
-Texture features are statistical measures that describe the spatial arrangement of pixel intensity values in an image. These features capture information about patterns, roughness, and uniformity within the image.
-In this application, texture features are extracted from the breast thermal images to provide additional information for predicting breast cancer.
-The texture features computed include:
-Mean: The average intensity value of the image.
-Standard Deviation: The spread or dispersion of intensity values around the mean.
-Entropy: A measure of randomness or disorder in pixel intensities.
-""")
+    # Add educational content
+    st.write("""
+    ### Understanding the Analysis
+    
+    #### Feature Extraction:
+    - Texture analysis
+    - Pattern recognition
+    - Intensity distribution
+    
+    #### Model Interpretation:
+    - Neural network analysis
+    - Feature importance
+    - Confidence scores
+    """)
 
-# Add an explanation for the prediction model
-st.write("""
-### Prediction Model:
-The prediction is based on a pre-trained neural network model trained on breast cancer data.
-The model predicts whether the tumor is benign or malignant based on the extracted features.
-""")
-
-# Add a footer
-st.write("""
+# Add footer
+st.markdown("""
 ---
-**Disclaimer:** This web app is for educational purposes only. It should not be used as a substitute for medical diagnosis or treatment. If you have concerns about breast cancer, please consult a healthcare professional.
+### Disclaimer
+This application is for educational and demonstration purposes only. 
+Always consult healthcare professionals for medical diagnosis and treatment decisions.
+
+*Powered by Advanced Machine Learning*
 """)
