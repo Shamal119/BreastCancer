@@ -1,174 +1,148 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from keras.models import load_model
-from skimage import io
-from keras.applications.vgg16 import VGG16
-from keras.applications.vgg16 import preprocess_input
-from keras.models import Model
-from sklearn.preprocessing import MinMaxScaler
+from PIL import Image
+import os
 
-# Load the pre-trained model
+# Set page config
+st.set_page_config(
+    page_title="Breast Cancer Prediction System",
+    page_icon="🏥",
+    layout="wide"
+)
 
-prediction_model = load_model('breast_cancer_model.h5')
+# Constants
+SAMPLE_IMAGES_DIR = 'sample_images'
 
-# Load pre-trained VGG16 model for feature extraction
-vgg_model = VGG16(weights='imagenet', include_top=False)
-feature_extractor = Model(inputs=vgg_model.input, outputs=vgg_model.get_layer('block5_pool').output)
+# Create sample_images directory if it doesn't exist
+if not os.path.exists(SAMPLE_IMAGES_DIR):
+    os.makedirs(SAMPLE_IMAGES_DIR)
 
-hospital_df = pd.read_csv("hospital_database.csv")
+# Initialize session state
+if 'model_loaded' not in st.session_state:
+    st.session_state.model_loaded = False
 
-def recommend_hospital(prediction):
-    if prediction:
-        # If prediction is positive (malignant), filter hospitals specializing in cancer treatment
-        recommended_hospitals = hospital_df[hospital_df['Specialization'] == 'Cancer Treatment']
-    else:
-        # If prediction is negative (benign), filter hospitals based on general healthcare
-        recommended_hospitals = hospital_df[hospital_df['Specialization'] == 'General Healthcare']
+# Load or create dummy hospital data
+@st.cache_data
+def load_hospital_data():
+    try:
+        return pd.read_csv("hospital_database.csv")
+    except:
+        return pd.DataFrame({
+            'Hospital Name': ['City Hospital', 'Cancer Care Center', 'General Hospital'],
+            'Specialization': ['General Healthcare', 'Cancer Treatment', 'General Healthcare'],
+            'Location': ['Downtown', 'Uptown', 'Midtown'],
+            'Contact': ['123-456-7890', '234-567-8901', '345-678-9012']
+        })
 
-    return recommended_hospitals
+hospital_df = load_hospital_data()
 
 # Helper functions
-def preprocess_input_data(input_data):
-    # Normalize the input data
-    scaler = MinMaxScaler()
-    input_data = scaler.fit_transform(input_data)
-    return input_data
+def create_placeholder_image(text="Sample", size=(300, 300), color='gray'):
+    """Create a placeholder image with text"""
+    from PIL import Image, ImageDraw
+    img = Image.new('RGB', size, color=color)
+    d = ImageDraw.Draw(img)
+    d.text((size[0]/3, size[1]/2), text, fill="white")
+    return img
 
-def extract_features(image):
-    # Load and preprocess the image
-    img = io.imread(image)
-    img = preprocess_input(img)
-    img = np.expand_dims(img, axis=0)
+@st.cache_data
+def load_sample_image(image_type):
+    """Load or create sample image"""
+    try:
+        path = f"sample_images/{image_type}.jpg"
+        if os.path.exists(path):
+            return Image.open(path)
+        else:
+            color = 'green' if 'benign' in image_type else 'red'
+            return create_placeholder_image(image_type, color=color)
+    except Exception as e:
+        return create_placeholder_image(f"Error: {image_type}")
 
-    # Extract features using pre-trained VGG16 model
-    features = feature_extractor.predict(img)
-    features = features.flatten()  # Flatten features into a 1D array
-    return features[:30]  # Use the first 30 elements of the flattened array
+def recommend_hospital(prediction):
+    """Recommend hospitals based on prediction"""
+    if prediction:
+        return hospital_df[hospital_df['Specialization'] == 'Cancer Treatment']
+    return hospital_df[hospital_df['Specialization'] == 'General Healthcare']
 
-def predict_breast_cancer(input_data, testing_mode=True, positive_probability=0.5):
-    # Make predictions
-    if testing_mode:
-        return np.random.choice([True, False], p=[positive_probability, 1 - positive_probability])
-    else:
-        predictions = prediction_model.predict(input_data)
-        return (predictions > 0.5)
+def make_prediction(image):
+    """Make prediction (demo version)"""
+    # In production, replace this with actual model prediction
+    return np.random.choice([True, False], p=[0.3, 0.7])
 
-
-# Create a Streamlit web app
+# Main app
 st.title("Breast Cancer Prediction System")
 
 # Add a sidebar for navigation
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Home", "Sample Images", "Make Prediction"])
 
+# Home page
 if page == "Home":
     st.write("""
     # Welcome to the Breast Cancer Prediction System
     
-    This application uses advanced machine learning techniques to analyze breast thermal images 
-    and predict whether a tumor is benign or malignant.
-    
-    ### How to use:
-    1. Browse through sample images in the 'Sample Images' section
-    2. Upload your image in the 'Make Prediction' section
-    3. Get instant predictions and hospital recommendations
+    This application demonstrates the potential of AI in medical diagnosis, 
+    specifically for breast cancer prediction using image analysis.
     
     ### Features:
-    - Advanced image analysis
-    - Instant predictions
-    - Hospital recommendations
-    - Educational resources
+    - 🔍 Image Analysis
+    - 🏥 Hospital Recommendations
+    - 📊 Instant Results
+    
+    ### How to use:
+    1. Browse sample images in the 'Sample Images' section
+    2. Upload your image in the 'Make Prediction' section
+    3. Get instant predictions and hospital recommendations
     """)
 
+# Sample Images page
 elif page == "Sample Images":
-    st.write("## Sample Images for Reference")
+    st.write("## Sample Images Reference")
     
-    st.write("### Benign Cases")
     col1, col2 = st.columns(2)
     with col1:
-        st.image("sample_images/benign_1.jpg", caption="Benign Sample 1")
+        st.subheader("Benign Cases")
+        st.image(load_sample_image("benign_1"), caption="Benign Sample 1")
+        
     
-    
-    st.write("### Malignant Cases")
-    col3, col4 = st.columns(2)
-    with col3:
-        st.image("sample_images/malignant_1.jpg", caption="Malignant Sample 1")
-    with col4:
-        st.image("sample_images/malignant_2.jpg", caption="Malignant Sample 2")
-    
-    st.write("""
-    ### Image Guidelines:
-    - Use high-quality thermal images
-    - Ensure proper lighting and focus
-    - Images should be clearly visible
-    - Recommended format: JPG, PNG
-    """)
+    with col2:
+        st.subheader("Malignant Cases")
+        st.image(load_sample_image("malignant_1"), caption="Malignant Sample 1")
+       
 
-elif page == "Make Prediction":
+# Prediction page
+else:
     st.write("## Upload Your Image for Prediction")
     
-    # File uploader with example image
-    st.write("### Upload an image:")
-    image = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
     
-    # Add example button
-    if st.button("Use Example Image"):
-        image = "sample_images/example.jpg"
-        st.image(image, caption="Example Image", width=300)
+    col1, col2 = st.columns(2)
     
-    # Create a button to make predictions
-    if st.button("Predict"):
-        if image is not None:
-            try:
-                # Show loading spinner
-                with st.spinner('Processing image...'):
-                    # Extract features from the uploaded image
-                    features = extract_features(image)
-                    input_data = preprocess_input_data(np.array(features).reshape(1, -1))
-                    predictions = predict_breast_cancer(input_data)
-
-                # Display results in an organized way
-                st.write("### Results:")
-                col1, col2 = st.columns(2)
+    with col1:
+        if uploaded_file is not None:
+            image = Image.open(uploaded_file)
+            st.image(image, caption="Uploaded Image", use_column_width=True)
+        
+      
+    
+    with col2:
+        if st.button("Make Prediction") and (uploaded_file is not None or 'image' in locals()):
+            with st.spinner('Analyzing image...'):
+                prediction = make_prediction(image)
                 
-                with col1:
-                    if predictions:
-                        st.error("📊 Prediction: Malignant")
-                    else:
-                        st.success("📊 Prediction: Benign")
+                if prediction:
+                    st.error("🔴 Prediction: Malignant")
+                else:
+                    st.success("🟢 Prediction: Benign")
                 
-                with col2:
-                    recommended_hospitals = recommend_hospital(predictions)
-                    st.write("🏥 Recommended Hospitals:")
-                    st.dataframe(recommended_hospitals)
+                st.write("### Recommended Hospitals:")
+                st.dataframe(recommend_hospital(prediction))
 
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
-        else:
-            st.warning("Please upload an image or use the example image.")
-
-    # Add educational content
-    st.write("""
-    ### Understanding the Analysis
-    
-    #### Feature Extraction:
-    - Texture analysis
-    - Pattern recognition
-    - Intensity distribution
-    
-    #### Model Interpretation:
-    - Neural network analysis
-    - Feature importance
-    - Confidence scores
-    """)
-
-# Add footer
+# Footer
 st.markdown("""
 ---
 ### Disclaimer
-This application is for educational and demonstration purposes only. 
-Always consult healthcare professionals for medical diagnosis and treatment decisions.
+This is a demonstration application. Always consult healthcare professionals for medical diagnosis.
 
-*Powered by Advanced Machine Learning*
 """)
